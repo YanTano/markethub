@@ -1,0 +1,24 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Product images: any signed-in seller can upload; publicly readable.
+    match /products/{allPaths=**} {
+      allow read: if true;
+      allow write: if request.auth != null
+        && request.resource.size < 8 * 1024 * 1024
+        && request.resource.contentType.matches('image/.*');
+    }
+    // Review photos: any signed-in customer can upload; publicly readable.
+    match /reviews/{allPaths=**} {
+      allow read: if true;
+      allow write: if request.auth != null
+        && request.resource.size < 8 * 1024 * 1024
+        && request.resource.contentType.matches('image/.*');
+    }
+    // Profile photos come from Google and are not uploaded directly.
+    match /{allOtherPaths=**} {
+      allow read: if true;
+      allow write: if false;
+    }
+  }
+}

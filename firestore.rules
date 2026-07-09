@@ -1,0 +1,85 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() { return request.auth != null; }
+    function isOwner(userId) { return isSignedIn() && request.auth.uid == userId; }
+    function myUser() { return get(/databases/$(database)/documents/Users/$(request.auth.uid)).data; }
+    function isAdmin() { return isSignedIn() && myUser().isAdmin == true; }
+    function isSeller() { return isSignedIn() && myUser().isSeller == true; }
+
+    // Users: anyone signed in can read public profile fields; only the
+    // owner or an admin can write, and only an admin can grant isAdmin.
+    match /Users/{userId} {
+      allow read: if isSignedIn();
+      allow create: if isOwner(userId);
+      allow update: if isOwner(userId) || isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    match /SellerProfiles/{docId} {
+      allow read: if true;
+      allow write: if isSignedIn() && (resource == null || resource.data.userId == request.auth.uid || isAdmin());
+    }
+
+    // Categories: public read, admin-managed.
+    match /Categories/{catId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Products: public read of active listings; sellers manage only their
+    // own products; admins can moderate (deactivate/delete) anything.
+    match /Products/{productId} {
+      allow read: if true;
+      allow create: if isSeller() && request.resource.data.sellerId == request.auth.uid;
+      allow update, delete: if isAdmin() ||
+        (isSeller() && resource.data.sellerId == request.auth.uid);
+    }
+
+    // Reviews: any signed-in user can create; only the author can edit or
+    // delete their own review; admins can remove abusive reviews.
+    match /Reviews/{reviewId} {
+      allow read: if true;
+      allow create: if isSignedIn() && request.resource.data.authorId == request.auth.uid;
+      allow update, delete: if isAdmin() ||
+        (isSignedIn() && resource.data.authorId == request.auth.uid);
+    }
+
+    // Cart / Wishlist / Addresses / Notifications: strictly private to the owner.
+    match /Cart/{docId} {
+      allow read, write: if isSignedIn() &&
+        (resource == null || resource.data.userId == request.auth.uid) &&
+        (request.resource == null || request.resource.data.userId == request.auth.uid);
+    }
+    match /Wishlist/{docId} {
+      allow read, write: if isSignedIn() &&
+        (resource == null || resource.data.userId == request.auth.uid) &&
+        (request.resource == null || request.resource.data.userId == request.auth.uid);
+    }
+    match /Addresses/{docId} {
+      allow read, write: if isSignedIn() &&
+        (resource == null || resource.data.userId == request.auth.uid) &&
+        (request.resource == null || request.resource.data.userId == request.auth.uid);
+    }
+    match /Notifications/{docId} {
+      allow read, update: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow create: if isSignedIn() || isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // Orders / OrderItems: buyer can create and read their own orders;
+    // sellers can read orders containing their products; admins see all.
+    match /Orders/{orderId} {
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+      allow read: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid) || isSeller();
+      allow update: if isAdmin() || isSeller();
+      allow delete: if isAdmin();
+    }
+    match /OrderItems/{itemId} {
+      allow read: if isAdmin() || isSeller() || isSignedIn();
+      allow create: if isSignedIn();
+      allow update, delete: if isAdmin();
+    }
+  }
+}

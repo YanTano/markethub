@@ -1,0 +1,14 @@
+{
+  "name": "MarketHub — Buy, Sell, Discover",
+  "short_name": "MarketHub",
+  "description": "An original-design e-commerce marketplace to buy and sell almost anything.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#FAF6EF",
+  "theme_color": "#154438",
+  "icons": [
+    { "src": "assets/icon-192.svg", "sizes": "192x192", "type": "image/svg+xml" },
+    { "src": "assets/icon-512.svg", "sizes": "512x512", "type": "image/svg+xml" }
+  ]
+}
